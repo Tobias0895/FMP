@@ -1,0 +1,9 @@
+Took at minAbundance
+density in model = edensity Hydrogen ionized
+Emission measure not important, can be used as scaling factor (?)
+Construct lambda(T) for single wavelength.
+Total Xray luminosity of the model, take emission back at the star into account
+
+1. assume lambda is constant and integrate n^2 over line of sight (Remeber you can't see behind the star)
+2. Create lambda as a function of temperature
+3. integrate lambda(T)n^2dl
