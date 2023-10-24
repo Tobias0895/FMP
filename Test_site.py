@@ -41,3 +41,9 @@ plt.pcolormesh(X[:, :, 0], Y[:, :, 0], interpolated_data[...,ds.variables.index(
 plt.colorbar()
 plt.show()
 # %%
+# The star is just the central cube, so we need to set everything behind that at 0
+total = np.array([])
+densities = interpolated_data[...,ds.variables.index('Rho [g/cm^3]')]
+for i in range(densities.shape[-1]):
+    sl = densities[...,i]
+    
