@@ -10,17 +10,20 @@ for akey in chdata.Defaults.keys():  print(akey)
 # Well try to create a lambda function fist for one wavelength
 import ChiantiPy.tools.filters as chfilters
 
-wvl = np.linspace(0.1, 100, 100) #angstrom
+wvl = np.geomspace(0.1, 100, 1000) #angstrom
 temperature = np.logspace(5, 9, 30)
 density = 1.e+8
 emeasure = np.full_like(temperature, 1.e+27)
-s = ch.spectrum(temperature, density, wvl, em = emeasure, doContinuum=1, minAbund=1.e-5)
+s = ch.spectrum(temperature, density, wvl, filter = (chfilters.gaussian, 0.1), em = emeasure, doContinuum=0, minAbund=1.e-5)
 # %%
 
 plt.plot(wvl, s.Spectrum['intensity'][15], label='T={:.2} K'.format(temperature[15]))
 plt.plot(wvl, s.Spectrum['intensity'][18], label='T={:.2} K'.format(temperature[18]))
 plt.xlabel(s.Spectrum['xlabel'])
 plt.ylabel(s.Spectrum['ylabel'])
+# plt.xscale('log')
+# plt.yscale('log')
+# plt.xlim(10, 100)
 plt.legend()
 plt.savefig('Figures/Xray spectrum.png', dpi=500)
 plt.show()
