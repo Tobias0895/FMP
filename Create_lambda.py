@@ -4,8 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 from scipy.interpolate import interp1d
-import ChiantiPy.tools.data as chdata
-for akey in chdata.Defaults.keys():  print(akey)
 # %%
 # Well try to create a lambda function fist for one wavelength
 import ChiantiPy.tools.filters as chfilters
@@ -13,7 +11,7 @@ import ChiantiPy.tools.filters as chfilters
 wvl = np.geomspace(0.1, 100, 1000) #angstrom
 temperature = np.logspace(5, 9, 30)
 density = 1.e+8
-emeasure = np.full_like(temperature, 1.e+27)
+emeasure = np.full_like(temperature, 1 )
 s = ch.spectrum(temperature, density, wvl, filter = (chfilters.gaussian, 0.1), em = emeasure, doContinuum=0, minAbund=1.e-5)
 # %%
 
@@ -47,12 +45,12 @@ plt.savefig('Figures/Lambda_Temperature.png')
 plt.show()
 
 # %%
-
+# We want a wavelength dependend lambda
 def create_lambda(temperatures, minwvl, maxwvl, density=1.e9, em=1.e27, continuum=1):
 
     wvl = np.linspace(minwvl, maxwvl, 1000) # Wavelength range for Xray
     s = ch.spectrum(temperature=temperatures, eDensity=density, wavelength=wvl, em=em, doContinuum=continuum, minAbund=1.e-4)
-    Fluxes_T = np.trapz(s.Spectrum['intensity'], wvl, axis=-1) # Intergrate the spectra for each temperature to obtain the total Xray flux
+    
     Lambda = interp1d(temperatures, Fluxes_T, kind='linear')
     return Lambda
 
