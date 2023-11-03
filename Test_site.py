@@ -17,16 +17,16 @@ ds_data = np.stack([ds(name) for name in ds.variables], axis=-1)
 interpolater = NearestNDInterpolator(ds_points, ds_data)
 # %%
 def G(T):
-    mask = T <= 1e6
+    mask = (T <= 5e4) + (T >= 1e5)
     G_temps = np.where(mask==0, T, 0)
     return G_temps
 
-def integrate_along_line_of_sight(direction, stellar_radius, interpolater):
+def integrate_along_line_of_sight(direction, stellar_radius, interpolater, image_radius=40, pixel_count=60):
 
     # We first create a 3D meshgrid
-    x = np.linspace(-20, 20, 60)
-    y = np.linspace(-20, 20, 60)
-    z = np.linspace(-20, 20, 60)
+    x = np.linspace(-1*image_radius, image_radius, pixel_count)
+    y = np.linspace(-1*image_radius, image_radius, pixel_count)
+    z = np.linspace(-1*image_radius, image_radius, pixel_count)
     X, Y, Z= np.meshgrid(x, y, z)
 
     # Interpolate the data on that grid
@@ -76,8 +76,9 @@ def integrate_along_line_of_sight(direction, stellar_radius, interpolater):
         raise ValueError
 
 # %%
-tobi, mesh = integrate_along_line_of_sight('+y', 1, interpolater)
-plt.pcolormesh(mesh[0], mesh[1], tobi, norm='log')
+tobi, mesh = integrate_along_line_of_sight('+z', 1, interpolater, pixel_count=100)
+plt.pcolormesh(mesh[0], mesh[1], tobi, norm='log', shading='gouraud')
 plt.axis('equal')
 plt.colorbar()
+plt.savefig('Figures/intergrated_line_of_sight_x.png', dpi=500)
 plt.show()

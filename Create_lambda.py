@@ -8,22 +8,22 @@ from scipy.interpolate import interp1d
 # Well try to create a lambda function fist for one wavelength
 import ChiantiPy.tools.filters as chfilters
 
-wvl = np.geomspace(0.1, 100, 1000) #angstrom
-temperature = np.logspace(5, 9, 30)
-density = 1.e+8
-emeasure = np.full_like(temperature, 1 )
-s = ch.spectrum(temperature, density, wvl, filter = (chfilters.gaussian, 0.1), em = emeasure, doContinuum=0, minAbund=1.e-5)
-# %%
+wvl = np.geomspace(0.1, 50, 1000) #angstrom
+temperature = np.logspace(4, 8, 100)
 
-plt.plot(wvl, s.Spectrum['intensity'][15], label='T={:.2} K'.format(temperature[15]))
-plt.plot(wvl, s.Spectrum['intensity'][18], label='T={:.2} K'.format(temperature[18]))
+density = 1.e+9
+emeasure = np.full_like(temperature, 1 )
+s = ch.spectrum(temperature, density, wvl, filter = (chfilters.gaussian, 0.2), em = emeasure, doContinuum=0, minAbund=1.e-4, verbose=0)
+# %%
+import matplotlib as mpl
+L, T = np.meshgrid(wvl, temperature)
+
+plt.pcolormesh(L, T, s.Spectrum['intensity'])
+plt.yscale('log')
+plt.ylabel('log(T [K])')
 plt.xlabel(s.Spectrum['xlabel'])
-plt.ylabel(s.Spectrum['ylabel'])
-# plt.xscale('log')
-# plt.yscale('log')
-# plt.xlim(10, 100)
-plt.legend()
-plt.savefig('Figures/Xray spectrum.png', dpi=500)
+plt.savefig('Figures/2D_G function', dpi=500)
+plt.colorbar()
 plt.show()
 # %%
 # Plot lambda as a function of temperature for the whole spectrum
