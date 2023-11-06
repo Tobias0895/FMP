@@ -8,17 +8,17 @@ from scipy.interpolate import interp1d
 # Well try to create a lambda function fist for one wavelength
 import ChiantiPy.tools.filters as chfilters
 
-wvl = np.geomspace(0.1, 50, 1000) #angstrom
+wvl = np.geomspace(0.1, 50, 5000) #angstrom
 temperature = np.logspace(4, 8, 100)
 
 density = 1.e+9
-emeasure = np.full_like(temperature, 1 )
-s = ch.spectrum(temperature, density, wvl, filter = (chfilters.gaussian, 0.2), em = emeasure, doContinuum=0, minAbund=1.e-4, verbose=0)
+emeasure = np.full_like(temperature, 1e27)
+s = ch.spectrum(temperature, density, wvl, filter = (chfilters.gaussian, 0.5), em = emeasure, doContinuum=1, minAbund=1.e-5, verbose=0)
 # %%
 import matplotlib as mpl
-L, T = np.meshgrid(wvl, temperature)
+L, T = np.meshgrid(wvl, temperature[60:])
 
-plt.pcolormesh(L, T, s.Spectrum['intensity'])
+plt.pcolormesh(L, T, s.Spectrum['intensity'][60:], shading='gouraud', norm='log')
 plt.yscale('log')
 plt.ylabel('log(T [K])')
 plt.xlabel(s.Spectrum['xlabel'])
@@ -26,40 +26,5 @@ plt.savefig('Figures/2D_G function', dpi=500)
 plt.colorbar()
 plt.show()
 # %%
-# Plot lambda as a function of temperature for the whole spectrum
-Intensities = np.trapz(s.Spectrum['intensity'], wvl, axis=-1)
 
-# Interpolating this data
-Linear_Interpolator = interp1d(temperature, Intensities)
-quadratic_Interpolator = interp1d(temperature, Intensities, kind='quadratic')
-full_temps = np.logspace(5, 9, 100)
-
-plt.plot(full_temps, Linear_Interpolator(full_temps), label='Linear interpolated lambda')
-plt.plot(full_temps, quadratic_Interpolator(full_temps), label='Quadratic interpolated lambda')
-plt.scatter(temperature, Intensities, label='sampled lambda')
-plt.xscale('log')
-plt.xlabel('Temperature (K)')
-plt.ylabel('Xray Flux (erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$)')
-plt.legend()
-plt.savefig('Figures/Lambda_Temperature.png')
-plt.show()
-
-# %%
-# We want a wavelength dependend lambda
-def create_lambda(temperatures, minwvl, maxwvl, density=1.e9, em=1.e27, continuum=1):
-
-    wvl = np.linspace(minwvl, maxwvl, 1000) # Wavelength range for Xray
-    s = ch.spectrum(temperature=temperatures, eDensity=density, wavelength=wvl, em=em, doContinuum=continuum, minAbund=1.e-4)
-    
-    Lambda = interp1d(temperatures, Fluxes_T, kind='linear')
-    return Lambda
-
-Lambda = create_lambda(temperature, 0.1, 100)
-# %%
-plt.plot(full_temps, Lambda(full_temps))
-plt.xscale('log')
-plt.xlabel('Temperature (K)')
-plt.ylabel('Xray Flux (erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$)')
-plt.legend()
-plt.show()
     
