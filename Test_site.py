@@ -2,12 +2,12 @@
 from starwinds_readplt.dataset import Dataset
 import numpy as np
 import matplotlib.pyplot as plt
+
 import os
 from scipy.interpolate import NearestNDInterpolator
 # import numba
 
 # %%
-# @jit(nonpython=True)
 # Import the data
 data_loc = os.environ['FMPdata']
 ds = Dataset.from_file(data_loc + '/3d__var_3_n00060000.plt')
@@ -25,21 +25,24 @@ def find_nearest(array, value):
 
 
 def G(T, wavelength_band:tuple):
-    G_total = np.load('G-5e-05.npy')
+    from scipy.interpolate import interp1d
+    # Load in the created G function and the corresponding wvl,T grid
+    G_total = np.load('G-0.0001.npy')
     wvl_array = np.load('L.npy')[0]
-    T_array = np.load('T.npy')[0]
-    min_wvl_idx = find_nearest(wvl_array, wavelength_band[0])
-    max_wvl_idx = find_nearest(wvl_array, wavelength_band[1])
-    G_band = G_total[...,min_wvl_idx:max_wvl_idx]
+    T_array = np.load('T.npy')[...,0]
+    
+    # Find the indicies of the closest wavelengths on the grid
+    mean_wvl = np.mean(wavelength_band)
+    mean_wvl_idx = find_nearest(wvl_array, mean_wvl)
+    G_band_average = G_total[...,mean_wvl_idx]
+    
+    # Interpolate G for certain wavelength
+    T_interpolator = interp1d(T_array, G_band_average)
+    interpolated_fluxes = T_interpolator(T)
+    return interpolated_fluxes
 
 
-
-
-    mask = T > 1e6
-    G_temps = np.where(mask==0, T, 0) # where the mask is False keep T, else 0
-    return G_temps
-
-def integrate_along_line_of_sight(direction, stellar_radius, interpolater, image_radius=40, pixel_count=60, *args, **kwargs):
+def integrate_along_line_of_sight(wvl_bin, direction, stellar_radius, interpolater, image_radius=20, pixel_count=60, *args, **kwargs):
 
     # We first create a 3D meshgrid
     x = np.linspace(-1*image_radius, image_radius, pixel_count)
@@ -77,8 +80,8 @@ def integrate_along_line_of_sight(direction, stellar_radius, interpolater, image
         raise ValueError
     mask = mask_star + mask_shadow
     density_minus_star = np.where(mask==0, interpolated_data[...,ds.variables.index('Rho [g/cm^3]')], 0)
-    temperature_minus_star = np.where(mask==0, interpolated_data[...,ds.variables.index('te [K]')], 0)
-    integrand = np.square(density_minus_star) * G(temperature_minus_star, *args)
+    temperature_minus_star = np.where(mask==0, interpolated_data[...,ds.variables.index('te [K]')], 1e4)
+    integrand = np.square(density_minus_star) * G(temperature_minus_star, wvl_bin, *args)
 
     # Now we integrate along the line of sight
     if car.lower() == "x":
@@ -93,31 +96,40 @@ def integrate_along_line_of_sight(direction, stellar_radius, interpolater, image
     else:
         raise ValueError
     
-def total_lum_wvl_bin(wvl_bin:tuple, **kwargs) -> float:
-    LoS_flux, mesh = integrate_along_line_of_sight(wvl_bin, **kwargs)
+def total_lum_wvl_bin(wvl_bin:tuple, direction, stellar_radius, interpolater, *args, **kwargs) -> float:
+    LoS_flux, mesh = integrate_along_line_of_sight(wvl_bin, direction, stellar_radius, interpolater, *args, **kwargs)
     Los_array = np.ravel(LoS_flux)
     total_lux_in_band = np.trapz(Los_array, dx=np.diff(mesh[0])[0,0])
     return total_lux_in_band
 
 
+def create_list_of_tuples(lst1, lst2):
+    result = []  # Empty list to store the tuples
+    for i in range(len(lst1)):
+        # Create a tuple from corresponding elements
+        tuple_element = (lst1[i], lst2[i])
+        result.append(tuple_element)  # Append the tuple to the list
+    return result
 
 # %%
-tobi, mesh = integrate_along_line_of_sight('+z', 1, interpolater, pixel_count=100)
-# print(mesh.shape)
-plt.pcolormesh(mesh[0], mesh[1], tobi, norm='log', shading='gouraud')
-plt.axis('equal')
-plt.colorbar()
-plt.savefig('Figures/intergrated_line_of_sight_x.png', dpi=500)
-plt.show()
+a = np.arange(0,180,2)
+b = np.arange(2,182,2)
+wavelength_band = create_list_of_tuples(a,b)
+#%%
+band_fluxes = []
+for band in wavelength_band:
+    total_band_flux = total_lum_wvl_bin(band, direction='+z', stellar_radius=1, interpolater=interpolater, pixel_count=50)
+    band_fluxes.append(total_band_flux)
 
-total_lum_wvl_bin((0,2), direction='+z', stellar_radius=1, interpolater=interpolater, pixel_count=50)
+total_flux = np.sum(band_fluxes)
+plt.plot(a, band_fluxes)
 # %%
 wavelength_band = (6,8)
-G_total = np.load('G-5e-05.npy')
-print(G_total.shape)
+G_total = np.load('G-0.0001.npy')
 wvl_array = np.load('L.npy')[0]
-T_array = np.load('T.npy')[0]
+T_array = np.load('T.npy')[...,0]
 a = find_nearest(wvl_array, wavelength_band[0])
 b = find_nearest(wvl_array, wavelength_band[1])
-G_total[...,a:b].shape
+print(T_array.shape)
+print(G_total.shape)
 
