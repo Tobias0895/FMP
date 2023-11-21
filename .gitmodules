@@ -1,0 +1,3 @@
+[submodule "starwinds-readplt"]
+	path = starwinds-readplt
+	url = https://github.com/svaberg/starwinds-readplt

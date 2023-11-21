@@ -4,7 +4,6 @@ import ChiantiPy
 import numpy as np
 import matplotlib.pyplot as plt
 
-
 # %%
 fe14 = ch.ion('fe_14',temperature=2e6, eDensity=1e9)
 
