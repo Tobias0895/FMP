@@ -9,7 +9,7 @@ from scipy.interpolate import interp1d
 # Well try to create a lambda function fist for one wavelength
 import ChiantiPy.tools.filters as chfilters
 abundance='sun_coronal_2012_schmelz_ext.abund',
-wvl = np.linspace(0.1, 180, 2001) #angstrom
+wvl = np.linspace(0.1, 180, 2001) # angstrom
 temperature = np.logspace(4, 8, 201)
 abund =2e-5
 density = 1.e+10
@@ -18,6 +18,7 @@ s = ch.spectrum(temperature, density, wvl,
                 em = None,
                 doContinuum=True,
                 minAbund=abund,
+                abundance=abundance,
                 verbose=False)
 # %%
 from matplotlib.colors import LogNorm
@@ -33,7 +34,7 @@ plt.yscale('log')
 plt.ylabel('log(T [K])')
 plt.xlabel(s.Spectrum['xlabel'])
 plt.colorbar(extend='min', label=s.Spectrum['ylabel'])
-plt.savefig('Figures/2D_G function_pretty', dpi=500)
+# plt.savefig('Figures/2D_G function_pretty', dpi=500)sa
 plt.show()
 # %%
 

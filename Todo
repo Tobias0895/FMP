@@ -11,3 +11,8 @@ Total Xray luminosity of the model, take emission back at the star into account
 16-11:
 Still found a total_flux dependend on pixel_count.
 Need to integrate G over the wavelenth band before calculating the flux
+
+22 - 11:
+The pixel_count dependecy is probably a problem of the interpolater
+Create a rotation movie
+Use the other models
