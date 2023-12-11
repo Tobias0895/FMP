@@ -5,45 +5,54 @@ from scipy import interpolate
 
 __all__ = ['create_grid', 'rotate_grid']
 
-def create_grid(size, resolution):
-    x = np.linspace(-size/2, size/2, resolution)
-    X, Y, Z = np.meshgrid(x,x,x)
-    return X, Y, Z
-
-
-def rotate_grid(angle:float|int, grid:tuple):
-    X, Y, Z = grid
-    Rotation_matrix = np.array([[np.cos(angle), np.sin(angle), 0],
-                       [np.sin(angle), np.cos(angle), 0],
-                       [0, 0, 1]])
+def create_grid(size, resolution:int, type:str):
+    if type.lower() == 'linear':
+        x = np.linspace(-size/2, size/2, resolution)
+        X, Y, Z = np.meshgrid(x,x,x)
+        return (X, Y, Z)
     
-    X_prime = X * np.cos(angle) - Y * np.sin(angle)
-    Y_prime = X * np.sin(angle) + Y * np.cos(angle)
-    Z_prime = Z.copy()
-    return X_prime, Y_prime, Z_prime
+    elif type.lower() == 'log':
+        # create the positive half
+        x_p = np.logspace(0, np.log10(size/2), resolution)
+        x_n = -1 * x_p
+        x = np.append(np.flip(x_n), x_p)
+        X, Y, Z = np.meshgrid(x,x,x)
+        return (X, Y, Z)
+    
 
-if __name__ =='__main__':
+def rotate_grid(theta:float|int, phi:float|int, grid:tuple):
+    X, Y, Z = grid
+
+    # First rotate around Z-axis (Theta)
+    X_prime = X * np.cos(theta) - Y * np.sin(theta)
+    Y_prime = X * np.sin(theta) + Y * np.cos(theta)
+    Z_prime = Z.copy()
+
+    # Then rotate around Y (phi)
+    X_prime_prime = X_prime * np.cos(phi) + Z_prime * np.sin(phi)
+    Y_prime_prime = Y_prime.copy()
+    Z_prime_prime = X_prime * - np.sin(phi) + Z_prime * np.cos(phi)
+
+    return X_prime_prime, Y_prime_prime, Z_prime_prime
+
+if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from scipy.interpolate import NearestNDInterpolator
     import os 
     from starwinds_readplt.dataset import Dataset
+    import Calculate_flux as cf
 
-    data_loc = os.environ['FMPdata']
-    ds = Dataset.from_file(data_loc + '/3d__var_3_n00060000.plt')
-    ds_data = np.stack([ds(name) for name in ds.variables], axis=-1)
-    ds_points = ds_data[...,:3]
 
-    nearest = NearestNDInterpolator(ds_points, ds_data)
-    angels = np.linspace(0, 350, 50)
+    nearest, var_list = cf.import_data('sun', 1)
     
-    X, Y, Z = create_grid(20, 100)
-    data = nearest(X, Y, Z)
-    for angle in angels:
-        X_rot, Y_rot, Z_rot = rotate_grid(np.deg2rad(angle), (X, Y, Z))
-        data_prime = nearest(X_rot, Y_rot, Z_rot)
-        fig = plt.figure()
-        ax = fig.add_subplot(121, projection='3d')
-        surf = ax.plot_surface(X_rot[0,...], Z_rot[0,...], data_prime[:, 10, :,ds.variables.index('te [K]')])
-        # plt.colorbar()
-        plt.show()
+    X, Y, Z = create_grid(20, 60, 'Log')
+
+    X_rot, Y_rot, Z_rot = rotate_grid(np.deg2rad(90), (X, Y, Z))
+
+    data_prime = nearest(X_rot, Y_rot, Z_rot)
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    surf = ax.pcolormesh(X_rot[0,...], Z_rot[0,...], data_prime[10, :, :,var_list.index('te [K]')])
+    # plt.colorbar()
+    plt.show()
 

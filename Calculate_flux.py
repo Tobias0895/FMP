@@ -1,35 +1,13 @@
-#%%
-import wave
-import numba
-from scipy import interpolate
-from starwinds_readplt.dataset import Dataset
+
+from venv import create
 import numpy as np
 import matplotlib.pyplot as plt
-import os
-from scipy.interpolate import NearestNDInterpolator, LinearNDInterpolator
-from numba import jit
+from sympy import fraction
 from tqdm import tqdm
 import Rotation
 
-__all__ = ['find_nearest', 'simple_g', 'G', 'integrate_along_line_of_sight', 'total_lum_wvl_bin',
+__all__ = ['find_nearest', 'simple_g', 'G', 'projection_2d', 'total_lum_wvl_bin',
            'create_list_of_tuples', 'create_spectra']
-
-def import_data(loc, interpolate='nearest'):
-    ds = Dataset.read()
-    s = Dataset.from_file(data_loc + '/3d__var_3_n00060000.plt')
-
-    # Get a stack of points and the data in a numpy format and create an interpolator function
-    ds_points = np.stack([ds(name) for name in ds.variables[:3]], axis=-1)
-    # ds_points *= solar_radius
-    ds_data = np.stack([ds(name) for name in ds.variables], axis=-1)
-    if interpolate.lower() == 'nearest':
-        return NearestNDInterpolator(ds_points, ds_data)
-    elif interpolate.lower == 'linear':
-        return LinearNDInterpolator(ds_points, ds_data)
-    else:
-        return ds_points, ds_data
-
-
 
 def find_nearest(array, value):
     array = np.asarray(array)
@@ -37,40 +15,42 @@ def find_nearest(array, value):
     return lowest_idx
 
 def simple_g(T, *args):
-    return np.where((T >=1e7) * (T <= 1e8), 1, 0)
+    return np.where((T >=1e6) * (T <= 1e7), 1, 0)
 
-def G(T, wavelength_band:tuple):
+def G(T, wavelength_band:tuple, use_simple_g=False):
     from scipy.interpolate import interp1d
-    # Load in the created G function and the corresponding wvl,T grid
-    G_total = np.load('G-0.0001.npy')
-    wvl_array = np.load('L.npy')[0]
-    T_array = np.load('T.npy')[...,0]
-    
-    # Find the indicies of the closest wavelengths on the grid
-    low_wvl_idx = find_nearest(wvl_array, wavelength_band[0])
-    high_wvl_idx = find_nearest(wvl_array, wavelength_band[1])
-    G_integrated_across_band = np.trapz(G_total[...,low_wvl_idx:high_wvl_idx],
-                                         wvl_array[...,low_wvl_idx:high_wvl_idx], axis=-1)
-    # G_band_average = G_total[...,mean_wvl_idx]
-    
-    # Interpolate G for certain wavelength
-    T_interpolator = interp1d(T_array, G_integrated_across_band)
-    interpolated_fluxes = T_interpolator(T)
-    return interpolated_fluxes
+    if use_simple_g == True:
+        return simple_g(T)
+    else:
+        # Load in the created G function and the corresponding wvl,T grid
+        G_total = np.load('G_(T,L)/G-0.0001.npy')
+        wvl_array = np.load('G_(T,L)/L.npy')[0]
+        T_array = np.load('G_(T,L)/T.npy')[...,0]
+        
+        # Find the indicies of the closest wavelengths on the grid
+        low_wvl_idx = find_nearest(wvl_array, wavelength_band[0])
+        high_wvl_idx = find_nearest(wvl_array, wavelength_band[1])
+        G_integrated_across_band = np.trapz(G_total[...,low_wvl_idx:high_wvl_idx],
+                                            wvl_array[...,low_wvl_idx:high_wvl_idx], axis=-1)
+        
+        # Interpolate G for certain wavelength
+        T_interpolator = interp1d(T_array, G_integrated_across_band)
+        interpolated_fluxes = T_interpolator(T)
+        return interpolated_fluxes
 
 
-def integrate_along_line_of_sight(wvl_bin, direction, stellar_radius, interpolater, 
-                                  image_radius=20, pixel_count=60, angle=0., *args, **kwargs):
-
+def projection_2d(wvl_bin:tuple, stellar_radius:float, interpolator, var_list:list,
+                                  image_radius=20, pixel_count=60, angle=(0.,0.), direction='+x', *args, **kwargs) -> tuple:
     # We first create a 3D meshgrid
     image_radius *= stellar_radius
     x = np.linspace(-1*image_radius, image_radius, pixel_count)
     y = np.linspace(-1*(image_radius), image_radius, pixel_count)
     z = np.linspace(-1*image_radius, image_radius, pixel_count)
     X, Y, Z= np.meshgrid(x, y, z)
-    X_rot, Y_rot, Z_rot = Rotation.rotate_grid(angle, (X, Y ,Z))
+    X_rot, Y_rot, Z_rot = Rotation.rotate_grid(angle[0], angle[1], (X, Y ,Z))
     # Interpolate the data on that grid
-    interpolated_data = interpolater(X_rot, Y_rot, Z_rot)
+    interpolated_data = interpolator(X_rot, Y_rot, Z_rot)
+
     
     # From the mesh grid create a mask that removes the star
     mask_star = X ** 2 + Y ** 2 + Z ** 2 <= stellar_radius ** 2
@@ -98,36 +78,44 @@ def integrate_along_line_of_sight(wvl_bin, direction, stellar_radius, interpolat
     else:
         raise ValueError
     mask = mask_star + mask_shadow
-    density_minus_star = np.where(mask==False, interpolated_data[...,ds.variables.index('Rho [g/cm^3]')], 0)
-    temperature_minus_star = np.where(mask==False, interpolated_data[...,ds.variables.index('te [K]')], 1e4)
-    integrand = np.square(density_minus_star) * G(temperature_minus_star, wvl_bin, *args)
-    # integrand = np.square(density_minus_star) * simple_g(temperature_minus_star, wvl_bin, *args)
+    # density_minus_star = np.where(mask==False, interpolated_data[...,var_list.index('Rho [g/cm^3]')], 0)
+    # temperature_minus_star = np.where(mask==False, interpolated_data[...,var_list.index('te [K]')], np.nan)
+    integrand = np.square(interpolated_data[...,var_list.index('Rho [g/cm^3]')] / 1.67e-24) * G(interpolated_data[...,var_list.index('te [K]')], wvl_bin, *args, **kwargs)
+    masked_integrand = np.where(mask==False, integrand, 0)
+
+    
+    # We want to take into account that light that goes towards the star can't be accounted for
+    Area_of_star = np.square(stellar_radius) * np.pi 
+    # Creating an array in the shape of the data to calculate the solid angle of the star at each point
+    solid_angle_array = Area_of_star / (X**2 + Y**2 + Z**2)
+    # The fraction of the sky at a point is then solid_angle / 4pi
+    fraction_usable_light =  1 - (solid_angle_array / (4*np.pi))
+    masked_integrand *= fraction_usable_light
 
     # Now we integrate along the line of sight
     if car.lower() == "x":
-        total_flux = np.trapz(integrand, X, axis=1)
+        total_flux = np.trapz(masked_integrand, X, axis=1)
         return total_flux, (Y[:, 0, :], Z[:, 0, :])
     elif car.lower() == 'y':
-        total_flux = np.trapz(integrand, Y, axis=0)
+        total_flux = np.trapz(masked_integrand, Y, axis=0)
         return total_flux, (X[0,...], Z[0,...])
     elif car.lower() == 'z':
-        total_flux = np.trapz(integrand, Z, axis=-1)
+        total_flux = np.trapz(masked_integrand, Z, axis=-1)
         return total_flux, (X[...,0], Y[...,0])
     else:
         raise ValueError
     
-def total_lum_wvl_bin(wvl_bin:tuple, direction:str, stellar_radius, interpolater, *args, **kwargs) -> float:
-    LoS_flux, mesh = integrate_along_line_of_sight(wvl_bin, direction, stellar_radius, interpolater=interpolater, *args, **kwargs)
+def total_lum_wvl_bin(wvl_bin:tuple, stellar_radius, interpolator, *args, **kwargs) -> float:
+    LoS_flux, mesh = projection_2d(wvl_bin, stellar_radius, interpolator=interpolator, *args, **kwargs)
     # The mesh variabele is different for when we integrate from the z direction.
-    if direction[1] == 'z':
-        # First we integrate along one axis
-        integrate_axis1 = np.trapz(LoS_flux, mesh[0], axis=-1)
-        # Then integrate along the other to get a single value
-        total_flux_in_band = np.trapz(integrate_axis1, mesh[0][0])
-    else:
-        integrate_axis1 = np.trapz(LoS_flux, mesh[1], axis=-1)
-        # Then integrate along the other to get a single value
-        total_flux_in_band = np.trapz(integrate_axis1, mesh[1][0])
+    # if direction[1] == 'z':
+    #     # First we integrate along one axis
+    #     integrate_axis1 = np.trapz(LoS_flux, mesh[0], axis=-1)
+    #     # Then integrate along the other to get a single value
+    #     total_flux_in_band = np.trapz(integrate_axis1, mesh[0][0])
+    integrate_axis1 = np.trapz(LoS_flux, mesh[1], axis=-1)
+    # Then integrate along the other to get a single value
+    total_flux_in_band = np.trapz(integrate_axis1, mesh[1][0])
     return total_flux_in_band
 
 
@@ -140,44 +128,92 @@ def create_list_of_tuples(lst1:list|np.ndarray, lst2:list|np.ndarray) -> list:
     return result
 
 
-def create_spectra(wvl_range:tuple, band_width:int|float, **kwargs) -> tuple:
+def create_spectra(wvl_range:tuple, band_width:int|float, disable_tqdm=False, save_spectra=False, **kwargs) -> tuple:
+    """_summary_
+
+    Args:
+        wvl_range (tuple): _description_
+        band_width (int | float): _description_
+        disable_tqdm (bool, optional): _description_. Defaults to False.
+        save_spectra (str, optional): If True saves the spectra. Defaults to False.
+
+    Returns:
+        tuple: _description_
+    """    ''''''
     a = np.arange(wvl_range[0], wvl_range[1],band_width)
     b = np.arange(wvl_range[0] + band_width, wvl_range[1] + band_width, band_width)
     wvl_bands = create_list_of_tuples(a,b)
     center_bands = np.mean(wvl_bands, axis=-1)
     spectrum = np.array([])
-    for b in wvl_bands:
+    for b in tqdm(wvl_bands, disable=disable_tqdm):
         flux = total_lum_wvl_bin(b, **kwargs)
         spectrum = np.append(spectrum, flux)
-    return (spectrum, center_bands)
+    if save_spectra:
+        np.save(save_spectra, [center_bands, spectrum]) # type: ignore
+        return (center_bands, spectrum)
+    else:
+        return (center_bands, spectrum)
     
 
 if __name__ == '__main__':
-    data_loc = os.environ['FMPdata']
-    ds = Dataset.from_file(data_loc + '/3d__var_3_n00060000.plt')
+    import load_data
+    names =  ['sun'] #['1x-PWAnd', '1x-Mel25-005']
 
-    solar_radius = 6.934e10 # cmj0
-    # Get a stack of points and the data in a numpy format and create an interpolator function
-    ds_points = np.stack([ds(name) for name in ds.variables[:3]], axis=-1)
-    # ds_points *= solar_radius
-    ds_data = np.stack([ds(name) for name in ds.variables], axis=-1)
-    mask = (ds_data[...,ds.variables.index('X [R]')] <= 10) & (ds_data[...,ds.variables.index('X [R]')] >= -10)
-    reducing_mask = mask
-    for i in range(ds_data.shape[1] -1):
-        reducing_mask = np.column_stack((reducing_mask, mask))
+    # Light curve
+    lc_fig = plt.figure()
+    ax = lc_fig.add_subplot(111)
+    
+    # Colour-colour diagram
+    cc_fig= plt.figure()
+    ax2 = cc_fig.add_subplot(111)
 
-    ds_reduced = np.where(reducing_mask==True, ds_data, 0)
+    # Total X-ray luminosity vs rotation period
+    lp_fig = plt.figure()
+    ax3 = lp_fig.add_subplot(111)
 
-    nearest_interpolater = NearestNDInterpolator(ds_points, ds_data)
+    angles = np.linspace(0, 2*np.pi, 50)
+  
+    bin_width = 2
+    for name in names:
+        interpolator, var_list, params = load_data.import_data(name)
+        stellar_radius = params['RadiusStar']
+        fluxes = np.zeros(len(angles))
 
-    for angle in tqdm(range(0,360, 20)):
-        band = (100, 150)
-        flux, mesh = integrate_along_line_of_sight(band, direction='+x', stellar_radius=1, interpolater=nearest_interpolater,
-                                                    angle=np.deg2rad(angle), image_radius=20, pixel_count=100)
-        plt.pcolormesh(mesh[0], mesh[1], flux, norm='log', shading='nearest')
-        plt.xlabel('Y [R]')
-        plt.ylabel('R§  ')
-        plt.colorbar()
-        plt.axis('equal')
-        # plt.savefig(f'Figures/2D_projection_{direction}_wvl_{band}')
-        plt.show()
+        '''Here we make a light curve of the star. We do this by creating a spectrum and integrating over that spectrum '''
+
+        for i, ang in enumerate(tqdm(angles)):
+             fluxes[i] = total_lum_wvl_bin((0.1, 180), stellar_radius=stellar_radius, interpolator=interpolator, var_list=var_list, angle=ang,
+                                        disable_tqdm=True)
+        print(np.log10(fluxes/3.8e30))
+        np.save(f'Light_curve_{name}.npy', [angles, fluxes])
+        ax.set_title(f"Lightcurve of {name}")
+        ax.plot(angles, fluxes, label=name)
+        ax.set_xlabel('Angle')
+        ax.set_ylabel('Flux')
+        lc_fig.savefig(f'Figures/light_curve_equator_{name}.png', dpi=500)
+        ax.clear()
+
+
+    #     ax3.scatter(fluxes[0], params['RotationPeriodStar'], label='{name}')
+
+
+    #     ''' Here we create a colour-colour diagram 
+    #     Colours will be defined as H (wvl<30 AA) - M (30<wvl<70); and M - S (70<wvl<110) '''
+    #     bands = [(0, 30), (30, 70), (70, 110)]
+    #     lums = []
+    #     for b in bands:
+    #         wvl, spec = create_spectra(b, 2, direction='+x', stellar_radius=stellar_radius, interpolator=interpolator, var_list=var_list)
+    #         lums.append((np.trapz(wvl, spec)))
+
+    #     ax2.scatter(np.log10(lums[0]/lums[1]), np.log10(lums[1]/lums[2]), label=f'{name}')
+    # ax2.set_xlabel('H - M')
+    # ax2.set_ylabel('M - S')
+    # ax2.legend()
+
+
+    # ax3.set_xlabel('Rot period (days)')
+    # ax3.set_ylabel('Total Xray Flux (erg s^-1)')
+    # plt.show()
+
+
+    

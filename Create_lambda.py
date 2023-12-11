@@ -1,27 +1,22 @@
-# %% 
 import ChiantiPy.core as ch
 import numpy as np
 import matplotlib.pyplot as plt
 import os
 from scipy.interpolate import interp1d
-
-# %%
-# Well try to create a lambda function fist for one wavelength
+from matplotlib.colors import LogNorm
 import ChiantiPy.tools.filters as chfilters
+
+# Well try to create a lambda function fist for one wavelength
 abundance='sun_coronal_2012_schmelz_ext.abund',
 wvl = np.linspace(0.1, 180, 2001) # angstrom
 temperature = np.logspace(4, 8, 201)
 abund =2e-5
 density = 1.e+10
-s = ch.spectrum(temperature, density, wvl, 
-                filter = (chfilters.gaussian, 0.1),
-                em = None,
+s = ch.spectrum(temperature, density, wvl, filter = (chfilters.gaussian, 0.1),
+                em = 1,
                 doContinuum=True,
                 minAbund=abund,
-                abundance=abundance,
                 verbose=False)
-# %%
-from matplotlib.colors import LogNorm
 
 L, T = np.meshgrid(wvl, temperature)
 # np.save('L.npy', L)
@@ -36,6 +31,3 @@ plt.xlabel(s.Spectrum['xlabel'])
 plt.colorbar(extend='min', label=s.Spectrum['ylabel'])
 # plt.savefig('Figures/2D_G function_pretty', dpi=500)sa
 plt.show()
-# %%
-
-    
