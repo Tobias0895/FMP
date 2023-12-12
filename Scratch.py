@@ -34,4 +34,9 @@ print(star_params['RotationPeriodStar'])
 
 
 # %%
-print(np.logspace(-4, 2, 2001))
+def count(*args):
+    for i in args:
+        print(i)
+
+
+count(*[1,3,1,4,1,1,1,1])

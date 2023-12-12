@@ -10,7 +10,7 @@ import ChiantiPy.tools.filters as chfilters
 abundance='sun_coronal_2012_schmelz_ext.abund',
 wvl = np.linspace(0.1, 180, 2001) # angstrom
 temperature = np.logspace(4, 8, 201)
-abund =2e-5
+abund =1e-5
 density = 1.e+10
 s = ch.spectrum(temperature, density, wvl, filter = (chfilters.gaussian, 0.1),
                 em = 1,
@@ -19,9 +19,9 @@ s = ch.spectrum(temperature, density, wvl, filter = (chfilters.gaussian, 0.1),
                 verbose=False)
 
 L, T = np.meshgrid(wvl, temperature)
-# np.save('L.npy', L)
-# np.save('T.npy', T)
-# np.save(f'G-{abund}.npy', s.Spectrum['intensity'])
+np.save('wvl.npy', wvl)
+np.save('temps.npy', temperature)
+np.save(f'G-{abund}.npy', s.Spectrum['intensity'])
 vmax = np.max(s.Spectrum['intensity'])
 norm = LogNorm(vmax=vmax, vmin=vmax/1e6, clip=True)
 plt.pcolormesh(L, T, s.Spectrum['intensity'], shading='gouraud', norm=norm, cmap='plasma')

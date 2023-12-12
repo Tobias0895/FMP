@@ -43,11 +43,10 @@ def read_model(model_name:str):
                 name = split[-1].split(' ')[1]
             else:
                 name = name[0]
-            star_params[str(name)] = value
+            star_params[str(name)] = float(value)
     except:
         print("No STAR.in found. Defaulting to solar parameters")
         star_params = {'RadiusStar': 1, 'MassStar': 1, "RotationPeriodStar": 24.47}
-    
     return ds, model_params, star_params
 
 
@@ -63,22 +62,16 @@ def import_data(name:str, interpolate='nearest', full_output=False):
 
     Returns:
         _type_: _description_
-    """    ''''''
+    """
     import astropy.units as u
     ds, model_params, star_params = read_model(name)
     variable_list = ds.variables
     # Get a stack of points and the data in a numpy format and create an interpolator function
     ds_points = np.stack([ds(name) for name in ds.variables[:3]], axis=-1)
-    if name == 'sun':
-        radius_star = star_params['RadiusStar'] * u.R_sun
-        star_params['RadiusStar'] = radius_star.to(u.cm).value
-        ds_points *= radius_star.to(u.cm).value
-        ds_data = np.stack([ds(name) for name in ds.variables], axis=-1)
-    else:
-        radius_star = star_params['RadiusStar'] * u.R_sun
-        star_params['RadiusStar'] = radius_star.to(u.cm)
-        ds_points *= radius_star.to(u.cm)
-        ds_data = np.stack([ds(name) for name in ds.variables], axis=-1)
+    radius_star = star_params['RadiusStar'] * u.R_sun
+    star_params['RadiusStar'] = radius_star.to(u.cm).value
+    ds_points *= radius_star.to(u.cm).value
+    ds_data = np.stack([ds(name) for name in ds.variables], axis=-1)
 
     if not full_output:
         if interpolate.lower() == 'nearest':
@@ -98,6 +91,4 @@ def import_data(name:str, interpolate='nearest', full_output=False):
             return LinearNDInterpolator(ds_points, ds_data), variable_list, star_params, model_params, ds
         else:
             raise ValueError
-
-if __name__ == '__main__':
-    interpolater, variables, star_params = import_data('sun')
+    

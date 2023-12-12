@@ -16,7 +16,8 @@ def create_grid(size, resolution:int, type:str):
         x_p = np.logspace(0, np.log10(size/2), resolution)
         x_n = -1 * x_p
         x = np.append(np.flip(x_n), x_p)
-        X, Y, Z = np.meshgrid(x,x,x)
+        X, Y = np.meshgrid(x,x)
+        Z = X ** 2 + Y ** 2
         return (X, Y, Z)
     
 
@@ -40,19 +41,17 @@ if __name__ == '__main__':
     from scipy.interpolate import NearestNDInterpolator
     import os 
     from starwinds_readplt.dataset import Dataset
-    import Calculate_flux as cf
+    import load_data
 
 
-    nearest, var_list = cf.import_data('sun', 1)
+    nearest, var_list, params = load_data.import_data('sun')
     
-    X, Y, Z = create_grid(20, 60, 'Log')
+    X, Y, Z = create_grid(20 * params['RadiusStar'], 60, 'Log')
 
-    X_rot, Y_rot, Z_rot = rotate_grid(np.deg2rad(90), (X, Y, Z))
-
-    data_prime = nearest(X_rot, Y_rot, Z_rot)
+    print('grid made')
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    surf = ax.pcolormesh(X_rot[0,...], Z_rot[0,...], data_prime[10, :, :,var_list.index('te [K]')])
-    # plt.colorbar()
+    surf = ax.pcolormesh(X, Y, Z)
+    # plt.colorbar()p[]
     plt.show()
 

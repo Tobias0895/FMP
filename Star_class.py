@@ -51,8 +51,6 @@ class star_model():
         ax.set_ylabel('erg s$^{-1}$ $\AA^{-1}$')
         plt.show()
 
-
-
     def light_curve(self, rotation_direction:str, wvl_range=(0.1, 180)):
         from tqdm import tqdm
         angles = np.linspace(0, 2*np.pi, 50) # in radians
@@ -71,6 +69,4 @@ class star_model():
         return Calculate_flux.total_lum_wvl_bin(wvl_bin, self.params['RadiusStar'], self.interpolator, var_list=self.var_list)
 
 if __name__ == "__main__":
-    sun = star_model('sun')
-    print(np.log10(sun.lum_x()/(3.828e33)))
-    
+    pass

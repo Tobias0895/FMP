@@ -33,7 +33,7 @@ def make_rotation_lightcurve_frame(t, **kwargs):
     ax[0].clear()
     ax[1].clear()
     img, mesh = cf.projection_2d(band, direction='+x', stellar_radius=params['RadiusStar'], interpolator=interpolator,
-                                                    angle=(0,np.deg2rad(angle)), image_radius=20, pixel_count=100, var_list=v, use_simple_g=False)
+                                                    angle=(np.deg2rad(angle),0), image_radius=20, pixel_count=100, var_list=v, use_simple_g=False)
     vmax = np.nanmax(img)
     norm = LogNorm(vmax=vmax, vmin=vmax/1e6 , clip=True)
     color = ax[0].pcolormesh(mesh[0], mesh[1], img, norm=norm)
@@ -44,9 +44,9 @@ def make_rotation_lightcurve_frame(t, **kwargs):
     ax[0].set_xlabel('d [R]')
 
     angle_rad = np.deg2rad(angle)
-    light_curve =np.load(f'Light_curve_{name}.npy')
+    light_curve =np.load(f'light_curves/Light_curve_{name}.npy')
     angles, lum = (light_curve[0], light_curve[1])
-    lum_at_angle = np.interp(angle_rad, angles, lum, )
+    lum_at_angle = np.interp(angle_rad, angles, lum)
     ax[1].plot(angles, lum)
     ax[1].scatter(angle_rad, lum_at_angle)
     ax[1].set_xlabel('Angle (rad)')
@@ -62,7 +62,7 @@ def make_rotation_frame(t):
     fig, ax = plt.subplots(1, 1)
     ax.clear()
     img, mesh = cf.projection_2d(band, direction='+x', stellar_radius=params['RadiusStar'], interpolator=interpolator,
-                                                    angle=(np.deg2rad(angle), np.deg2rad(30)), image_radius=20, pixel_count=100, var_list=v, use_simple_g=False)
+                                                    angle=(np.deg2rad(angle), 0), image_radius=20, pixel_count=100, var_list=v, use_simple_g=False)
     vmax = np.nanmax(img)
     norm = LogNorm(vmax=vmax, vmin=vmax/1e6 , clip=True)
     color = ax.pcolormesh(mesh[0], mesh[1], img, norm=norm, shading='gouraud')
@@ -76,11 +76,11 @@ def make_rotation_frame(t):
 
 if __name__ == '__main__':
     import load_data
-    name = '1x-PWAnd'
+    name = '1x-Mel25-005'
     interpolator, v, params = load_data.import_data(name) # type: ignore
     band = (10, 30)
     # spectrum_movie = VideoClip(make_lightcurve_frame, duration=10)
     # spectrum_movie.write_gif('1x-Mel25-005_spectrum.gif', fps=24)
 
-    rotation_movie = VideoClip(make_rotation_frame, duration=10)
-    rotation_movie.write_gif(f'Random_rotation_{name}.gif', fps=24)
+    rotation_movie = VideoClip(make_rotation_lightcurve_frame, duration=10)
+    rotation_movie.write_gif(f'Movies/rotation_curve_{name}.gif', fps=24)
