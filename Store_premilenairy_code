@@ -1,0 +1,51 @@
+    # From the projection_2d function in Calculate_flux.py, the star_masking based on the cardinal direction
+    # Potentially not usefull since it now works on rotation angles.
+    fb = list(direction)[0]
+    car = list(direction)[1]
+    if car.lower() == 'x':
+        mask_shadow = Y ** 2 + Z ** 2 < stellar_radius ** 2
+        if fb == "+":
+           mask_shadow *= (X < 0)
+        elif fb == '-':
+            mask_shadow *= (X > 0)
+    elif car.lower() == 'y':
+        mask_shadow = X** 2 + Z** 2 <= stellar_radius ** 2
+        if fb == "+":
+            mask_shadow *= (Y < 0)
+        elif fb == '-':
+            mask_shadow *= (Y > 0)
+    elif car.lower() == 'z':
+        mask_shadow = X ** 2 + Y ** 2 <= stellar_radius ** 2
+        if fb == "+":
+            mask_shadow *= (Z < 0)
+        elif fb == '-':
+            mask_shadow *= (Z > 0)   
+    else:
+        raise ValueError
+
+    if car.lower() == "x":
+        total_flux = np.trapz(masked_integrand, X, axis=1)
+        return total_flux, (Y[:, 0, :], Z[:, 0, :])
+    elif car.lower() == 'y':
+        total_flux = np.trapz(masked_integrand, Y_rot, axis=0)
+        return total_flux, (X[0,...], Z[0,...])
+    elif car.lower() == 'z':
+        total_flux = np.trapz(masked_integrand, Z_rot, axis=-1)
+        return total_flux, (X[...,0], Y[...,0])
+    else:
+        raise ValueError
+
+
+
+    for U in grid:
+        U000 ; U001 ; U002
+        U010 ; U011 ; U012
+        U020 ; U021 ; U022
+
+        U100 ; U101 ; U102
+        U110 ; U111 ; U112
+        U120 ; U121 ; U122
+
+        U200 ; U201 ; U202
+        U210 ; U211 ; U212
+        U220 ; U221 ; U222

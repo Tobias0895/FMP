@@ -8,7 +8,7 @@ import ChiantiPy.tools.filters as chfilters
 
 # Well try to create a lambda function fist for one wavelength
 abundance='sun_coronal_2012_schmelz_ext.abund',
-wvl = np.linspace(0.1, 180, 2001) # angstrom
+wvl = np.geomspace(0.0001, 100, 3001) # angstrom
 temperature = np.logspace(4, 8, 201)
 abund =1e-5
 density = 1.e+10
@@ -19,9 +19,9 @@ s = ch.spectrum(temperature, density, wvl, filter = (chfilters.gaussian, 0.1),
                 verbose=False)
 
 L, T = np.meshgrid(wvl, temperature)
-np.save('wvl.npy', wvl)
+np.save('geom-wvl.npy', wvl)
 np.save('temps.npy', temperature)
-np.save(f'G-{abund}.npy', s.Spectrum['intensity'])
+np.save(f'G-{abund}_geomwvl.npy', s.Spectrum['intensity'])
 vmax = np.max(s.Spectrum['intensity'])
 norm = LogNorm(vmax=vmax, vmin=vmax/1e6, clip=True)
 plt.pcolormesh(L, T, s.Spectrum['intensity'], shading='gouraud', norm=norm, cmap='plasma')

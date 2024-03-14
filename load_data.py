@@ -18,11 +18,16 @@ def find_file(name, path):
     """
     import glob
     files = glob.glob(data_loc + '/' + path + '/**/' + name, recursive=True)
-    print('{:>25}'.format(f'Reading from file: {files[0]}'))
+    print('{}'.format(f'Reading from file: {files[0]}'))
     return files[0]
 
 def read_model(model_name:str):
-    model_path = find_file('3d__var_3_n00060000.plt', model_name)
+    try:
+        model_path = find_file('3d__var_3_n00060000.plt', model_name)
+    except IndexError:
+        print('3d__var_3_n00060000.plt not found, trying 3d__var_3_n00006000.plt')
+        model_path = find_file('3d__var_3_n00006000.plt', model_name)
+
     ds = Dataset.from_file(model_path)
     try:
         params_file = open(os.path.join(data_loc, model_name + '/SCPARAM.in'), 'r')
@@ -64,6 +69,8 @@ def import_data(name:str, interpolate='nearest', full_output=False):
         _type_: _description_
     """
     import astropy.units as u
+    from scipy.interpolate import NearestNDInterpolator, LinearNDInterpolator
+    from scipy.spatial.qhull import QhullError
     ds, model_params, star_params = read_model(name)
     variable_list = ds.variables
     # Get a stack of points and the data in a numpy format and create an interpolator function
@@ -75,20 +82,26 @@ def import_data(name:str, interpolate='nearest', full_output=False):
 
     if not full_output:
         if interpolate.lower() == 'nearest':
-            from scipy.interpolate import NearestNDInterpolator
-            return NearestNDInterpolator(ds_points, ds_data), variable_list, star_params
+            return NearestNDInterpolator(ds_points, ds_data), variable_list, star_params, None, None, None
         elif interpolate.lower() == 'linear':
-            from scipy.interpolate import LinearNDInterpolator
-            return LinearNDInterpolator(ds_points, ds_data), variable_list, star_params
+            try:
+                return LinearNDInterpolator(ds_points, ds_data), variable_list, star_params, None, None, None
+            except QhullError:
+                print("QhullError: Linear interpolation failed, \
+                Using nearest interpolation") 
+                return NearestNDInterpolator(ds_points, ds_data), variable_list, star_params, None, None, None
         else:
             raise ValueError
     else:
         if interpolate.lower() == 'nearest':
-            from scipy.interpolate import NearestNDInterpolator
-            return NearestNDInterpolator(ds_points, ds_data),  variable_list, star_params, model_params, ds
+            return NearestNDInterpolator(ds_points, ds_data),  variable_list, star_params, model_params, ds_points, ds_data
         elif interpolate.lower() == 'linear':
-            from scipy.interpolate import LinearNDInterpolator
-            return LinearNDInterpolator(ds_points, ds_data), variable_list, star_params, model_params, ds
+            try:
+                return LinearNDInterpolator(ds_points, ds_data), variable_list, star_params, model_params, ds_points, ds_data
+            except QhullError:
+                print("QhullError: Linear interpolation failed, \
+                Using nearest interpolation") 
+                return NearestNDInterpolator(ds_points, ds_data),  variable_list, star_params, model_params, ds_points, ds_data
         else:
             raise ValueError
     

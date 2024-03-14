@@ -21,9 +21,26 @@ Use the other models
 angle flux plot. light curve.
 color comparisons
 
-
 Later:
 UNITSSS V
-L_x vs P or age
+L_x vs P or age V
+See about resampling (?)
 
+17-01:
+Maybe see about inclination vs magnetic inclination
 
+24-01:
+Fit the Lx/rot (limit the paramters)
+Fit dipole
+
+31-01:
+Use different bands
+Fit dipole -> minimization problem; different methods, just direction, normalize everything; try model points
+
+Mean contribution function.
+Open field lines to Lx V
+Lx in literature, See simbad and F16/18 for alternate names
+
+Reiners fit has a slope close to unity -> check this !!!
+Look at the minimum and maximum of the sun in its cycle
+Temperature and density plot
