@@ -37,15 +37,44 @@
 
 
 
-    for U in grid:
-        U000 ; U001 ; U002
-        U010 ; U011 ; U012
-        U020 ; U021 ; U022
+             (X, Y ,Z), _ = Grid_Operations.create_grid(image_radius, pixel_count/2, type='linear') # outer grid, large structures so we do not need much detail -> lower pixel count
+            (X_prime, Y_prime, Z_prime), _ = Grid_Operations.create_grid(image_radius/3, pixel_count, type='linear') # inner grid smaller structures 
 
-        U100 ; U101 ; U102
-        U110 ; U111 ; U112
-        U120 ; U121 ; U122
+            # The star is only present in the middel grid so we do not have to mask the star in the outer grid
+            mask_star = X_prime ** 2 + Y_prime ** 2 + Z_prime ** 2 <= self.params['RadiusStar'] ** 2
+            inner_mask = mask_star
+            
+            inner_masked_in_outer =  (X < image_radius/3) * (Y < image_radius/3) * (Z < image_radius/3) \
+                * (-image_radius/3 < X) * (-image_radius/3 < Y) * (-image_radius/3 < Z)
+            interpolated_inner = self.interpolator(X_prime, Y_prime, Z_prime)
+            interpolated_outer = self.interpolator(X, Y, Z)
 
-        U200 ; U201 ; U202
-        U210 ; U211 ; U212
-        U220 ; U221 ; U222
+            integrand_inner = np.square(interpolated_inner[...,self.var_list.index('Rho [g/cm^3]')] / 1.67e-24) * Calculate_flux.G(interpolated_inner[...,self.var_list.index('te [K]')], wvl_bin, *args, **kwargs)
+            integrand_outer = np.square(interpolated_outer[...,self.var_list.index('Rho [g/cm^3]')] / 1.67e-24) * Calculate_flux.G(interpolated_outer[...,self.var_list.index('te [K]')], wvl_bin, *args, **kwargs)
+            
+            masked_integrand_outer = np.where(inner_masked_in_outer==False, integrand_outer, 0)
+            masked_integrand_inner = np.where(inner_mask==False, integrand_inner, 0)
+
+            # We want to take into account that light that goes towards the star can't be accounted fors
+            Area_of_star = np.square(self.params['RadiusStar']) * np.pi 
+            # Creating an array in the shape of the data to calculate the solid angle of the star at each point
+            solid_angle_array_outer = Area_of_star / (X**2 + Y**2 + Z**2)
+            solid_angle_array_inner = Area_of_star / (X_prime**2 + Y_prime**2 + Z_prime**2)
+
+            # The fraction of the sky taken up by the star at a point is then solid_angle / 4pi
+            # So the fraction light that escapes is 1 - solid_angle/4pi
+            fraction_usable_light_outer = 1 - (solid_angle_array_outer / (4*np.pi))
+            fraction_usable_light_inner = 1 - (solid_angle_array_inner / (4*np.pi))
+
+            masked_integrand_inner *= fraction_usable_light_inner
+            masked_integrand_outer *= fraction_usable_light_outer
+
+            two_d_inner = np.trapz(masked_integrand_inner, X_prime, axis=1)
+            one_d_inner = np.trapz(two_d_inner, Z_prime[:, 0, :], axis=-1)
+            tot_inner = np.trapz(one_d_inner, Z_prime[:, 0, :][0])
+
+            two_d_outer = np.trapz(masked_integrand_outer, X, axis=1)
+            one_d_outer = np.trapz(two_d_outer, Z[:, 0, :], axis=-1)
+            tot_outer = np.trapz(one_d_outer, Z[:, 0, :][0])
+
+            self.total_lum = tot_inner + tot_outer

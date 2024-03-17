@@ -37,6 +37,20 @@ def create_grid(size, resolution:float|int, type:str):
         raise ValueError ('Unknown grid type')
     return (X, Y, Z), x
 
+def up_center_res(grid, f_incr):
+    segments_outer = segment_3dgrid(grid)
+  
+    # extract the middle cube out of the segments. 
+    middle_cube = segments_outer.pop(13)
+    middle_cube_X = middle_cube[0]
+    npix_cur = len(middle_cube_X[0,0])
+    middle_cube_axis = np.linspace(np.min(middle_cube_X), np.max(middle_cube_X), f_incr * npix_cur)
+
+    middle_cube_new = tuple(np.meshgrid(middle_cube_axis, middle_cube_axis, middle_cube_axis))
+    segments = [middle_cube_new]
+    for seg in segments_outer: # maybe this can be done without a for loop
+        segments.append(seg)
+    return segments
 
 def segment_3dgrid(grid:tuple):
     """This function will segment a 3d grid into 27 smaller grids. These grids are returned in an array where the first
@@ -55,12 +69,15 @@ def segment_3dgrid(grid:tuple):
                 X_seg = X[i * segment_size : (i+1) * segment_size, 
                         j * segment_size : (j+1) * segment_size,
                         k * segment_size : (k+1) * segment_size]
+                
                 Y_seg = Y[i * segment_size : (i+1) * segment_size, 
                         j * segment_size : (j+1) * segment_size,
                         k * segment_size : (k+1) * segment_size]
+                
                 Z_seg = Z[i * segment_size : (i+1) * segment_size, 
                         j * segment_size : (j+1) * segment_size,
                         k * segment_size : (k+1) * segment_size]
+                
                 segments.append((X_seg, Y_seg, Z_seg))
     return segments
     

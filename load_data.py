@@ -3,6 +3,7 @@ import os
 from pyexpat import model
 from starwinds_readplt.dataset import Dataset
 import numpy as np
+import sys, os
 data_loc = os.environ['FMPdata']
 
 
@@ -55,7 +56,7 @@ def read_model(model_name:str):
     return ds, model_params, star_params
 
 
-def import_data(name:str, interpolate='nearest', full_output=False):
+def import_data(name:str, interpolate='nearest', full_output=False, verbose=False):
     assert type(full_output) == bool
     """This function imports the data of the star given in the name parameter. It uses the files from the model to get the grid into units of cm such that it can be used with CGS
 
@@ -71,7 +72,12 @@ def import_data(name:str, interpolate='nearest', full_output=False):
     import astropy.units as u
     from scipy.interpolate import NearestNDInterpolator, LinearNDInterpolator
     from scipy.spatial.qhull import QhullError
-    ds, model_params, star_params = read_model(name)
+    if verbose:
+        ds, model_params, star_params = read_model(name)
+    elif not verbose:
+        block_print()
+        ds, model_params, star_params = read_model(name)
+        resume_print()
     variable_list = ds.variables
     # Get a stack of points and the data in a numpy format and create an interpolator function
     ds_points = np.stack([ds(name) for name in ds.variables[:3]], axis=-1)
@@ -104,4 +110,10 @@ def import_data(name:str, interpolate='nearest', full_output=False):
                 return NearestNDInterpolator(ds_points, ds_data),  variable_list, star_params, model_params, ds_points, ds_data
         else:
             raise ValueError
+        
+def block_print():
+    sys.stdout = open(os.devnull, 'w')
+
+def resume_print():
+    sys.stdout = sys.__stdout__
     

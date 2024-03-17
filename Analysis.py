@@ -7,7 +7,7 @@ import astropy.constants as c
 import pandas as pd
 import matplotlib.colors as mcolors
 import matplotlib as mpl
-
+from tqdm import tqdm
 
 mpl.rcParams['font.size'] = 14
 
@@ -34,7 +34,7 @@ print("keys: ", ", ".join(df.keys()))
 
 
 # %%
-# Creating models and extracting fluxes. This might take a while, so go get a cup of tea and a good night sleep
+# Creating models and extracting fluxes. This might take a while, so go get a cup of tea and a good night sleep if its on linear interpolation 
 def dict_to_array(d):
     new_d = {}
     for key in d.keys():  
@@ -42,8 +42,8 @@ def dict_to_array(d):
     return new_d
 
 stars = {'name': [], 'HARDx': [], 'ROSATx': [], 'EUV': [], 'kpr': [], 'Lbol': [], 'association': [], 'Prot': []}
-for name in names:
-    star = star_model(name, interpolation='linear')
+for name in tqdm(names):
+    star = star_model(name, interpolation='nearest', verbose=False)
     if "sun" in name.lower(): # Sun data is not found in star_data so we make an exception for those 
         lum_bol = 3.86e33
         association = 'Sun'
@@ -52,8 +52,9 @@ for name in names:
         star_idx= star_data[star_data['Star'].str.replace(' ', '') == name.replace('1x-', '')].index
         lum_bol = star_data['Lum'][star_idx].values[0] * 3.86e33 # erg / s
         association = star_data['Associations'][star_idx].values[0]
+
     x_lum_hard = star.lum_x(image_radius=50, pixel_count=100, wvl_bin=(0.1, 5))
-    x_lum_ROSAT = star.lum_x(image_radius=50, pixel_count=100, wvl_bin=(5, 120))
+    x_lum_ROSAT = star.lum_x(image_radius=100, pixel_count=300, wvl_bin=(5, 120))
     x_lum_EUV = star.lum_x(image_radius=50, pixel_count=100, wvl_bin=(120, 180))
     kpr_value = np.log10(1.86e-3 * star.params['RotationPeriodStar'] ** -2 * (star.params['RadiusStar'] / c.R_sun.to('cm').value) **-4)
 
@@ -78,7 +79,6 @@ ax.scatter(np.log10(df['Prot']), df['Lx/bol'], color='k', s=1)
 ax3.scatter(np.log10(1.86e-3 * df['R*']**-4 *df['Prot'] **-2), df['Lx/bol'], c='gray', s=2, label='Reiners+2014')
 
 for star in stars['name']:
-    lower_lim
     idx = np.where(stars['name'] == star)
     ax.scatter(np.log10(stars['Prot'][idx]), np.log10((stars['HARDx'][idx] + stars['ROSATx'][idx] + stars['EUV'][idx])/stars['Lbol'][idx]))
 
@@ -91,7 +91,7 @@ for star in stars['name']:
     ax2[0].scatter(stars['kpr'][idx], np.log10(stars['HARDx'][idx]/stars['Lbol'][idx]), marker='*', label=stars['association'][idx],
                    c=list(mcolors.TABLEAU_COLORS)[np.where(associations == stars['association'][idx])[0][0]])
     
-    ax3.scatter(stars['kpr'][idx], np.log10((10 ** 4.5) * stars['ROSATx'][idx]/stars['Lbol'][idx]), marker='*', s=100, label=stars['association'][idx][0],
+    ax3.scatter(stars['kpr'][idx], np.log10((10 ** 4) * stars['ROSATx'][idx]/stars['Lbol'][idx]), marker='*', s=100, label=stars['association'][idx][0],
                 c=list(mcolors.TABLEAU_COLORS)[np.where(associations == stars['association'][idx])[0][0]])
 
 ax.set_ylabel('Log L$_x$ (erg s$^{-1}$)')
@@ -117,7 +117,7 @@ ax3.legend(by_label.values(), by_label.keys())
 
 # fig_pl.savefig('Figures/Lx_Prot_+lit.png', dpi=500, bbox_inches='tight')
 # fig_kpr.savefig('Figures/Lx_kpr_Mulitple_bands.pdf', dpi=50,  bbox_inches='tight')
-fig_lit.savefig('Figures/Lx_kpr+Reiners.png', dpi=50, bbox_inches='tight')  
+# fig_lit.savefig('Figures/Lx_kpr+Reiners.png', dpi=50, bbox_inches='tight')  
 
 # %%
 # ------------------ Fitting ------------------
