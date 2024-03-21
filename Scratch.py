@@ -196,13 +196,24 @@ print(L2)
 import Grid_Operations as GO
 import numpy as np
 import matplotlib.pyplot as plt
+
+
+def up_center_res(grid, nseg):
+    assert nseg >= 2
+
+    npix = grid[0].shape[0]# The amount of pixels along one dimension of the grid, equal to the pixel_count variable in
+    segments_outer = GO.segment_3dgrid(grid)
+  
+    # extract the middle cube out of the segments. 
+    middle_cube = segments_outer.pop(13)
+    middle_cube_X = middle_cube[0]
+    middle_cube_axis = np.linspace(np.min(middle_cube_X), np.max(middle_cube_X), npix)
+
+    middle_cube_new = tuple(np.meshgrid(middle_cube_axis, middle_cube_axis, middle_cube_axis))
+    segments = segments_outer + [middle_cube_new]
+    return segments
 grid, x= GO.create_grid(10, 90, 'linear')
-segments = GO.segment_3dgrid(grid)
+segments = up_center_res(grid, 2)
 
-ax = plt.figure().add_subplot(projection='3d')
-
-for i, (X, Y, Z) in enumerate(segments):
-    print(X.shape, Y.shape, Z.shape, i)
-    if i == 14:
-        continue
-    ax.scatter(X, Y, Z, alpha=0.1)
+for i, (X, Y, Z) in enumerate(segments[:4]):
+    pass

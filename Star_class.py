@@ -43,7 +43,6 @@ class star_model():
             mesh = (mesh[0]/self.params['RadiusStar'], mesh[1]/self.params["RadiusStar"])
             vmax = np.nanmax(lum)
             norm = LogNorm(vmax=vmax, vmin=vmax/1e6, clip=True)
-            print(type(ax))
             quadmesh = ax.pcolormesh(mesh[0], mesh[1], lum, 
                                     norm=norm)
             
@@ -132,12 +131,18 @@ class star_model():
                                                              var_list=self.var_list, angle=(0., ang))
         return angles, fluxes
     
-    def lum_x(self, image_radius=20, pixel_count=200, wvl_bin=(0.1,180), grid_type='linear', *args, **kwargs):
+    def lum_x(self, image_radius=20, pixel_count=200, wvl_bin=(0.1,180), grid_type='linear', nseg=2, *args, **kwargs):
         import Grid_Operations
         if grid_type =='segmented':
             grid, x= Grid_Operations.create_grid(image_radius * self.params['RadiusStar'], pixel_count, 'linear')
-            segments = Grid_Operations.up_center_res(grid, 3)
-
+            segments, centers = Grid_Operations.up_center_res(grid)
+            if nseg > 1:
+                i = 1
+                while i < nseg:
+                    middle = segments.pop(-1)
+                    segments_inner, centers_inner = Grid_Operations.up_center_res(middle)
+                    centers += centers_inner
+                    segments += segments_inner
             total_X = []
             for segment in segments:
                 X, Y, Z = segment
@@ -180,7 +185,6 @@ class star_model():
             # So the fraction light that escapes is 1 - solid_angle/4pi
             fraction_usable_light =  1 - (solid_angle_array / (4*np.pi))
             masked_integrand *= fraction_usable_light
-
             two_d = np.trapz(masked_integrand, X, axis=1)
             one_d = np.trapz(two_d, Z[:, 0, :], axis=-1)
             self.total_lum= np.trapz(one_d, Z[0, 0, :])

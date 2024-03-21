@@ -37,24 +37,22 @@ def create_grid(size, resolution:float|int, type:str):
         raise ValueError ('Unknown grid type')
     return (X, Y, Z), x
 
-def up_center_res(grid, f_incr):
-    segments_outer = segment_3dgrid(grid)
+def up_center_res(grid):
+    npix = grid[0].shape[0]# The amount of pixels along one dimension of the grid, equal to the pixel_count variable in
+    segments_outer, centers = segment_3dgrid(grid)
   
     # extract the middle cube out of the segments. 
     middle_cube = segments_outer.pop(13)
     middle_cube_X = middle_cube[0]
-    npix_cur = len(middle_cube_X[0,0])
-    middle_cube_axis = np.linspace(np.min(middle_cube_X), np.max(middle_cube_X), f_incr * npix_cur)
+    middle_cube_axis = np.linspace(np.min(middle_cube_X), np.max(middle_cube_X), int(1.1 * npix)) # We increase by 1.1 to be able to differentiate by shape
 
     middle_cube_new = tuple(np.meshgrid(middle_cube_axis, middle_cube_axis, middle_cube_axis))
-    segments = [middle_cube_new]
-    for seg in segments_outer: # maybe this can be done without a for loop
-        segments.append(seg)
-    return segments
+    segments = segments_outer + [middle_cube_new]
+    return segments, centers
 
 def segment_3dgrid(grid:tuple):
     """This function will segment a 3d grid into 27 smaller grids. These grids are returned in an array where the first
-    element stars at (0,0,0) corner increasing first along the x-axis, then the y-axis, and then the z-axis
+    element stars at (0,0,0) corner increasing first along the Z-axis, then X-axis, then Y-axis
 
     Args:
         grid (tuple): The grid you want to segment
@@ -79,7 +77,9 @@ def segment_3dgrid(grid:tuple):
                         k * segment_size : (k+1) * segment_size]
                 
                 segments.append((X_seg, Y_seg, Z_seg))
-    return segments
+    xc = np.linspace(np.min(X), np.max(X), 3)
+    segment_centers = np.meshgrid(xc, xc, xc)
+    return segments, segment_centers
     
 def rotate_grid(theta:float|int, phi:float|int, grid:tuple):
     X, Y, Z = grid

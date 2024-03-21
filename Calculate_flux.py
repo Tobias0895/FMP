@@ -1,10 +1,8 @@
 
 from email.mime import image
 from tkinter import Grid
-from venv import create
 import numpy as np
 import matplotlib.pyplot as plt
-from sympy import fraction
 from tqdm import tqdm
 import Grid_Operations
 
@@ -51,56 +49,46 @@ def projection_2d(wvl_bin: tuple, stellar_radius: float, interpolator, var_list:
     image_radius *= stellar_radius
     
     if grid_type.lower() == 'segmented':
-        i = False 
-        grid, x = Grid_Operations.create_grid(image_radius, pixel_count, type='linear')
-        grid_segmented = Grid_Operations.up_center_res(grid, 3)
-        interpolated_cubes = []
-        for segment in grid_segmented:
-            X, Y, Z = segment
-            X_rot, Y_rot, Z_rot = Grid_Operations.rotate_grid(angle[0], angle[1], segment)
-            mask_star = X**2 + Y**2 + Z**2 <= stellar_radius ** 2
+        # We'll create a whole grid and mask out the middle, and create a seperate middle (Primed) grid
+        # which is the size of the masked out part with the same resolution
+        (X, Y ,Z), _ = Grid_Operations.create_grid(image_radius, pixel_count, type='linear')
+        (X_prime, Y_prime, Z_prime), _ = Grid_Operations.create_grid(image_radius/3, pixel_count, type='linear')
+        X_rot, Y_rot, Z_rot = Grid_Operations.rotate_grid(angle[0], angle[1], (X, Y ,Z))
+        Xprime_rot, Yprime_rot, Zprime_rot = Grid_Operations.rotate_grid(angle[0], angle[1], (X_prime, Y_prime ,Z_prime))
 
-        if i == True:
-            # We'll create a whole grid and mask out the middle, and create a seperate middle (Primed) grid
-            # which is the size of the masked out part with the same resolution
-            (X, Y ,Z), _ = Grid_Operations.create_grid(image_radius, pixel_count, type='linear')
-            (X_prime, Y_prime, Z_prime), _ = Grid_Operations.create_grid(image_radius/3, pixel_count, type='linear')
-            X_rot, Y_rot, Z_rot = Grid_Operations.rotate_grid(angle[0], angle[1], (X, Y ,Z))
-            Xprime_rot, Yprime_rot, Zprime_rot = Grid_Operations.rotate_grid(angle[0], angle[1], (X_prime, Y_prime ,Z_prime))
+        # The star is only present in the middel grid so we do not have to mask the star in the outer grid
+        mask_star = Xprime_rot ** 2 + Yprime_rot ** 2 + Zprime_rot ** 2 <= stellar_radius ** 2
+        mask_shadow = (Y_prime ** 2 + Z_prime ** 2 <= stellar_radius ** 2) * (X_prime < 0)
+        inner_mask = mask_star + mask_shadow
+        
+        inner_masked_in_outer =  (X < image_radius/3) * (Y < image_radius/3) * (Z < image_radius/3) \
+            * (-image_radius/3 < X) * (-image_radius/3 < Y) * (-image_radius/3 < Z)
+        interpolated_inner = interpolator(Xprime_rot, Yprime_rot, Zprime_rot)
+        interpolated_outer = interpolator(X_rot, Y_rot, Z_rot)
 
-            # The star is only present in the middel grid so we do not have to mask the star in the outer grid
-            mask_star = Xprime_rot ** 2 + Yprime_rot ** 2 + Zprime_rot ** 2 <= stellar_radius ** 2
-            mask_shadow = (Y_prime ** 2 + Z_prime ** 2 <= stellar_radius ** 2) * (X_prime < 0)
-            inner_mask = mask_star + mask_shadow
-            
-            inner_masked_in_outer =  (X < image_radius/3) * (Y < image_radius/3) * (Z < image_radius/3) \
-                * (-image_radius/3 < X) * (-image_radius/3 < Y) * (-image_radius/3 < Z)
-            interpolated_inner = interpolator(Xprime_rot, Yprime_rot, Zprime_rot)
-            interpolated_outer = interpolator(X_rot, Y_rot, Z_rot)
+        integrand_inner = np.square(interpolated_inner[...,var_list.index('Rho [g/cm^3]')] / 1.67e-24) * G(interpolated_inner[...,var_list.index('te [K]')], wvl_bin, *args, **kwargs)
+        integrand_outer = np.square(interpolated_outer[...,var_list.index('Rho [g/cm^3]')] / 1.67e-24) * G(interpolated_outer[...,var_list.index('te [K]')], wvl_bin, *args, **kwargs)
+        
+        masked_integrand_outer = np.where(inner_masked_in_outer==False, integrand_outer, 0)
+        masked_integrand_inner = np.where(inner_mask==False, integrand_inner, 0)
 
-            integrand_inner = np.square(interpolated_inner[...,var_list.index('Rho [g/cm^3]')] / 1.67e-24) * G(interpolated_inner[...,var_list.index('te [K]')], wvl_bin, *args, **kwargs)
-            integrand_outer = np.square(interpolated_outer[...,var_list.index('Rho [g/cm^3]')] / 1.67e-24) * G(interpolated_outer[...,var_list.index('te [K]')], wvl_bin, *args, **kwargs)
-            
-            masked_integrand_outer = np.where(inner_masked_in_outer==False, integrand_outer, 0)
-            masked_integrand_inner = np.where(inner_mask==False, integrand_inner, 0)
+        # We want to take into account that light that goes towards the star can't be accounted fors
+        Area_of_star = np.square(stellar_radius) * np.pi 
+        # Creating an array in the shape of the data to calculate the solid angle of the star at each point
+        solid_angle_array_outer = Area_of_star / (X_rot**2 + Y_rot**2 + Z_rot**2)
+        solid_angle_array_inner = Area_of_star / (Xprime_rot**2 + Yprime_rot**2 + Zprime_rot**2)
 
-            # We want to take into account that light that goes towards the star can't be accounted fors
-            Area_of_star = np.square(stellar_radius) * np.pi 
-            # Creating an array in the shape of the data to calculate the solid angle of the star at each point
-            solid_angle_array_outer = Area_of_star / (X_rot**2 + Y_rot**2 + Z_rot**2)
-            solid_angle_array_inner = Area_of_star / (Xprime_rot**2 + Yprime_rot**2 + Zprime_rot**2)
+        # The fraction of the sky taken up by the star at a point is then solid_angle / 4pi
+        # So the fraction light that escapes is 1 - solid_angle/4pi
+        fraction_usable_light_outer = 1 - (solid_angle_array_outer / (4*np.pi))
+        fraction_usable_light_inner = 1 - (solid_angle_array_inner / (4*np.pi))
 
-            # The fraction of the sky taken up by the star at a point is then solid_angle / 4pi
-            # So the fraction light that escapes is 1 - solid_angle/4pi
-            fraction_usable_light_outer = 1 - (solid_angle_array_outer / (4*np.pi))
-            fraction_usable_light_inner = 1 - (solid_angle_array_inner / (4*np.pi))
+        masked_integrand_inner *= fraction_usable_light_inner
+        masked_integrand_outer *= fraction_usable_light_outer
 
-            masked_integrand_inner *= fraction_usable_light_inner
-            masked_integrand_outer *= fraction_usable_light_outer
-
-            flux_inner = np.trapz(masked_integrand_inner, X_prime, axis=1)
-            flux_outer = np.trapz(masked_integrand_outer, X, axis=1)
-            return (flux_inner, flux_outer), ((Y_prime[:, 0, :], Z_prime[:, 0, :]), (Y[:, 0, :], Z[:, 0, :]))
+        flux_inner = np.trapz(masked_integrand_inner, X_prime, axis=1)
+        flux_outer = np.trapz(masked_integrand_outer, X, axis=1)
+        return (flux_inner, flux_outer), ((Y_prime[:, 0, :], Z_prime[:, 0, :]), (Y[:, 0, :], Z[:, 0, :]))
     
     else:
         (X, Y ,Z), _ = Grid_Operations.create_grid(image_radius, pixel_count, type=grid_type)

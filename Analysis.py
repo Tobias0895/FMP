@@ -28,10 +28,12 @@ tap_service = voresource.get_service("tap")
 tap_records = voresource.get_service("tap").run_sync(
     f'select  * from "{table_name}"',
 )
-
-df = tap_records.table.to_pandas()
-print("keys: ", ", ".join(df.keys()))
-
+ 
+dfw = tap_records.table.to_pandas()
+print("keys: ", ", ".join(dfw.keys()))
+print(np.min(dfw['R*']), np.max(dfw['R*']))
+Rmask = (dfw['R*'] > 0.5) * (dfw['R*'] <= 1.0)
+df = dfw[Rmask]
 
 # %%
 # Creating models and extracting fluxes. This might take a while, so go get a cup of tea and a good night sleep if its on linear interpolation 
@@ -53,9 +55,9 @@ for name in tqdm(names):
         lum_bol = star_data['Lum'][star_idx].values[0] * 3.86e33 # erg / s
         association = star_data['Associations'][star_idx].values[0]
 
-    x_lum_hard = star.lum_x(image_radius=50, pixel_count=100, wvl_bin=(0.1, 5))
-    x_lum_ROSAT = star.lum_x(image_radius=100, pixel_count=300, wvl_bin=(5, 120))
-    x_lum_EUV = star.lum_x(image_radius=50, pixel_count=100, wvl_bin=(120, 180))
+    x_lum_hard = star.lum_x(image_radius=250, pixel_count=100, wvl_bin=(0.1, 5), grid_type='segmented', nseg=1)
+    x_lum_ROSAT = star.lum_x(image_radius=250, pixel_count=100, wvl_bin=(5, 120), grid_type='segmented', nseg=1)
+    x_lum_EUV = star.lum_x(image_radius=250, pixel_count=100, wvl_bin=(120, 180), grid_type='segmented', nseg=1)
     kpr_value = np.log10(1.86e-3 * star.params['RotationPeriodStar'] ** -2 * (star.params['RadiusStar'] / c.R_sun.to('cm').value) **-4)
 
     stars['name'].append(name)
