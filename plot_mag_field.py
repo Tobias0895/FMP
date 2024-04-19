@@ -20,7 +20,6 @@ interpolated_data = interpolator(XX, YY, Z)
 B_vector = np.asarray([interpolated_data[...,var_list.index('B_x [Gauss]')],
             interpolated_data[...,var_list.index('B_y [Gauss]')]]).T
 
-
 def field_function2(r_vector, m_vector):
     mu_0 =  1#1.25663706212e-6
     r_size = np.linalg.norm(r_vector, axis=-1)
@@ -30,7 +29,6 @@ def field_function2(r_vector, m_vector):
     b = (r_hat - m_vector.T)
     c = (a * b) / (np.power(r_size, 3))
     return mu_0 / (4 * np.pi) * c
-
 
 m_vector = np.array([.1,-0.2,0])
 m_vector = m_vector[...,np.newaxis]

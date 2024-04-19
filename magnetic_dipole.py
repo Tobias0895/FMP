@@ -1,6 +1,6 @@
 import numpy as np
 import load_data
-import Star_class
+import Xray_winds.Star_class
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit, minimize, basinhopping
 

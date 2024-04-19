@@ -24,7 +24,7 @@ color comparisons
 Later:
 UNITSSS V
 L_x vs P or age V
-See about resampling (?)
+See about resampling
 
 17-01:
 Maybe see about inclination vs magnetic inclination
@@ -43,5 +43,5 @@ Lx in literature, See simbad and F16/18 for alternate names
 
 Reiners fit has a slope close to unity -> check this !!! V
 Look at the minimum and maximum of the sun in its cycle ~ 2 dex in ROSAT
-Temperature and density plot
-check Radii in W11
+Temperature and density plot ~V
+check Radii in W11 devide into different radii bins to see if the relation holds up. We plot kPR so the radius is already included in the plot

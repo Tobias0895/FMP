@@ -1,5 +1,4 @@
 #%%
-from networkx import project
 import numpy as np
 import ChiantiPy.core as ch
 import matplotlib.pyplot as plt

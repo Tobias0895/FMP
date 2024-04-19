@@ -1,3 +1,6 @@
 [submodule "starwinds-readplt"]
 	path = starwinds-readplt
 	url = https://github.com/svaberg/starwinds-readplt
+[submodule "Xray_winds"]
+	path = Xray_winds
+	url = https://github.com/Tobias0895/Xraywinds
