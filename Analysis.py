@@ -54,7 +54,7 @@ def dict_to_array(d):
         new_d[key] = np.array(d[key])
     return new_d
 
-stars = {'name': [], 'HARDx': [], 'ROSATx': [], 'EUV': [], 'kpr': [], 'Lbol': [], 'association': [], 'Prot': []}
+stars = {'name': [], 'HARDx': [], 'ROSATx': [], 'EUV': [], 'kpr': [], 'Lbol': [], 'association': [], 'Prot': [], 'Age': []}
 radii = []
 for name in tqdm(names):
     star = star_model(name, interpolation='nearest', verbose=False)
@@ -67,9 +67,9 @@ for name in tqdm(names):
         lum_bol = star_data['Lum'][star_idx].values[0] * 3.86e33 # erg / s
         association = star_data['Associations'][star_idx].values[0]
 
-    x_lum_hard = star.lum_x(image_radius=250, pixel_count=3, wvl_bin=(0.1, 5), grid_type='segmented', nseg=2)
-    x_lum_ROSAT = star.lum_x(image_radius=250, pixel_count=3, wvl_bin=(5, 120), grid_type='segmented', nseg=2)
-    x_lum_EUV = star.lum_x(image_radius=250, pixel_count=3, wvl_bin=(120, 180), grid_type='segmented', nseg=2)
+    x_lum_hard = star.lum_x(image_radius=250, pixel_count=31, wvl_bin=(0.1, 5), grid_type='segmented', nseg=2)
+    x_lum_ROSAT = star.lum_x(image_radius=250, pixel_count=31, wvl_bin=(5, 120), grid_type='segmented', nseg=2)
+    x_lum_EUV = star.lum_x(image_radius=250, pixel_count=31, wvl_bin=(120, 180), grid_type='segmented', nseg=2)
     kpr_value = np.log10(1.86e-3 * star.params['RotationPeriodStar'] ** -2 * (star.params['RadiusStar'] / c.R_sun.to('cm').value) **-4)
     radii.append(star.params['RadiusStar'])
 
@@ -81,7 +81,9 @@ for name in tqdm(names):
     stars['Lbol'].append(lum_bol)
     stars['association'].append(association)
     stars['Prot'].append(star.params['RotationPeriodStar'])
-
+    stars['Age'].append(star_data['Age'][star_idx].values[0])
+    break
+print(stars['Age'])
 stars = dict_to_array(stars)
 # %%
 
@@ -92,18 +94,27 @@ plt.show()
 print(np.mean(radii/ c.R_sun.to('cm').value), np.mean(sorted_R))
 print(np.std(radii/ c.R_sun.to('cm').value), np.std(sorted_R))
 # %%
+# ------- save data -------
+import pickle
+with open('stars_data.pkl', 'wb') as f:
+    pickle.dump(stars, f)
+
+# %% 
+
 # -- Plotting --
 associations = np.unique(stars['association'])
-fig_pl, ax = plt.subplots(1,1,figsize=(8,8))
-fig_kpr, ax2 = plt.subplots(1,3, figsize=(16,5), sharey=True)
-fig_lit, ax3 = plt.subplots(1,1, figsize=(8,8))
+fig_pl, ax = plt.subplots(1,2,figsize=(16,8), sharey=True)
+fig_kpr, ax2 = plt.subplots(3,1, figsize=(4,12), sharex=True)
+fig_fit, ax3 = plt.subplots(1,1, figsize=(8,8))
 
-ax.scatter(np.log10(dfw['Prot']), dfw['Lx/bol'], color='k', s=1)
+ax[0].scatter(np.log10(dfw['Prot']), dfw['Lx/bol'], color='grey', s=2)
+ax[1].scatter(np.log10(1.86e-3 * dfw['R*']**-4 *dfw['Prot'] **-2), dfw['Lx/bol'], c='gray', s=2, label='Reiners+2014')
 ax3.scatter(np.log10(1.86e-3 * dfw['R*']**-4 *dfw['Prot'] **-2), dfw['Lx/bol'], c='gray', s=2, label='Reiners+2014')
 
 for star in stars['name']:
     idx = np.where(stars['name'] == star)
-    ax.scatter(np.log10(stars['Prot'][idx]), np.log10((stars['HARDx'][idx] + stars['ROSATx'][idx] + stars['EUV'][idx])/stars['Lbol'][idx]))
+    ax[0].scatter(np.log10(stars['Prot'][idx]), np.log10((10 ** 4) * (stars['ROSATx'][idx])/stars['Lbol'][idx]), marker='*',s=100, label=stars['association'][idx],
+                   c=list(mcolors.TABLEAU_COLORS)[np.where(associations == stars['association'][idx])[0][0]])
 
     ax2[2].scatter(stars['kpr'][idx], np.log10(stars['EUV'][idx]/stars['Lbol'][idx]), marker='*', label=stars['association'][idx],
                    c=list(mcolors.TABLEAU_COLORS)[np.where(associations == stars['association'][idx])[0][0]])
@@ -114,67 +125,64 @@ for star in stars['name']:
     ax2[0].scatter(stars['kpr'][idx], np.log10(stars['HARDx'][idx]/stars['Lbol'][idx]), marker='*', label=stars['association'][idx],
                    c=list(mcolors.TABLEAU_COLORS)[np.where(associations == stars['association'][idx])[0][0]])
     
-    ax3.scatter(stars['kpr'][idx], np.log10((10 ** 3.5) * stars['ROSATx'][idx]/stars['Lbol'][idx]), marker='*', s=100, label=stars['association'][idx][0],
+    ax[1].scatter(stars['kpr'][idx], np.log10((10 ** 4) * stars['ROSATx'][idx]/stars['Lbol'][idx]), marker='*', s=100, label=stars['association'][idx][0],
+                c=list(mcolors.TABLEAU_COLORS)[np.where(associations == stars['association'][idx])[0][0]])
+    ax3.scatter(stars['kpr'][idx], np.log10((10 ** 4) * stars['ROSATx'][idx]/stars['Lbol'][idx]), marker='*', s=100, label=stars['association'][idx][0],
                 c=list(mcolors.TABLEAU_COLORS)[np.where(associations == stars['association'][idx])[0][0]])
 
-ax.set_ylabel('Log L$_x$ (erg s$^{-1}$)')
-ax.set_xlabel('log P$_{rot}$ (Days)')
+ax[0].set_ylabel('Log L$_x$/L$_{bol}$ (erg s$^{-1}$)')
+ax[0].set_xlabel('Log P$_{rot}$ (Days)')
+fig_pl.subplots_adjust(wspace=0.03)
 
 ax2[0].invert_xaxis() ; ax2[1].invert_xaxis(); ax2[2].invert_xaxis()
-ax2[0].set_ylabel('Log L$_x$ / L$_{bol}$ (erg s$^{-1}$)')
-ax2[0].axvline(-3.14, ls='--', color='grey') ; ax2[1].axvline(-3.14, ls='--', color='grey') ; ax2[2].axvline(-3.14, ls='--', color='grey')
-ax2[0].set_xlabel('k P$^{-2}$ R$^{-4}$') ; ax2[1].set_xlabel('k P$^{-2}$ R$^{-4}$') ; ax2[2].set_xlabel('k P$^{-2}$ R$^{-4}$')
-ax2[0].set_title('Hard Xrays [0.1-5] $\AA$') ; ax2[1].set_title('ROSAT [5-120] $\AA$') ; ax2[2].set_title('EUV [120-180] $\AA$')
-fig_kpr.subplots_adjust(wspace=0)
+# ax2[0].set_ylabel('Log L$_x$ / L$_{bol}$ (erg s$^{-1}$)')
+# ax2[0].axvline(-3.14, ls='--', color='grey') ; ax2[1].axvline(-3.14, ls='--', color='grey') ; ax2[2].axvline(-3.14, ls='--', color='grey')
+ax2[2].set_xlabel('Log k P$^{-2}$ R$^{-4}$') # ; ax2[1].set_xlabel('k P$^{-2}$ R$^{-4}$') ; ax2[2].set_xlabel('k P$^{-2}$ R$^{-4}$')
+ax2[0].text(-2,-20.5,'Hard Xrays [0.1-5] $\AA$') ; ax2[1].text(-2,-9.7, 'ROSAT [5-120] $\AA$') ; ax2[2].text(-2, -9.4, 'EUV [120-180] $\AA$')
+fig_kpr.text(-0.08, 0.5, 'Log L$_x$ / L$_{bol}$ (erg s$^{-1}$)', va='center', rotation='vertical')
+fig_kpr.subplots_adjust(hspace=0.05)
 
+ax[1].invert_xaxis()
+# ax[1].set_ylabel('Log L$_x$ / L$_{bol}$ (erg s$^{-1}$)')
+ax[1].set_xlabel('Log k P$^{-2}$ R$^{-4}$')
+# ax[1].set_title('ROSAT [5-120] $\AA$')
 ax3.invert_xaxis()
-ax3.set_ylabel('Log L$_x$ / L$_{bol}$ (erg s$^{-1}$)')
-ax3.set_xlabel('k P$^{-2}$ R$^{-4}$')
-ax3.set_title('ROSAT [5-120] $\AA$')
-
-kpr_axs = fig_lit.gca()
+kpr_axs = fig_pl.gca()
 handles, labels = kpr_axs.get_legend_handles_labels()
 by_label = dict(zip(labels, handles))
-ax3.legend(by_label.values(), by_label.keys())
-# fig_lit.savefig('Figures/Segmented_KPR_fig.png', dpi=100)
+ax[1].legend(by_label.values(), by_label.keys())
+ax2[1].legend(by_label.values(), by_label.keys(), prop={'size': 9, }, loc=6)
+# fig_lit.savefig('Figures/Paper/Segmented_KPR_fig.pdf', dpi=100)
+fig_kpr.savefig('Figures/Paper/KPR_in_bands.pdf', dpi=100, bbox_inches='tight')
+fig_pl.savefig('Figures/Paper/Pl_Kpr_together.pdf', dpi=100, bbox_inches='tight')
 
  
 
 # %%
 # ------------------ Fitting ------------------
-if args.fit == True:
-    from scipy.optimize import curve_fit
+from scipy.optimize import curve_fit
 
-    def pw_linear(x, a, b):
-        return np.piecewise(x, [x > -3.14, x <= -3.14], [ lambda x: b, lambda x: a*x + (b - a*(-3.14))])
+def pw_linear(x, a, b):
+    return np.piecewise(x, [x > -3.14, x <= -3.14], [ lambda x: b, lambda x: a*x + (b - a*(-3.14))])
 
-    sat_mask = stars['kpr'] <= -3.14
-    opt_pw, cov_pw = curve_fit(pw_linear, stars['kpr'], np.log10(stars['ROSATx']/stars['Lbol']))
-    opt_reiners, cov_reiners = curve_fit(pw_linear, np.log10(1.86e-3 * dfw['R*']**-4 *dfw['Prot'] **-2), dfw['Lx/bol'])
-    # We expect a unity slope from Reiners
-    print(f"Best fit of our data {opt_pw:.2f}, ± {np.sqrt(np.diag(cov_pw)):.2f}")
+opt_pw, cov_pw = curve_fit(pw_linear, stars['kpr'], np.log10(stars['ROSATx']/stars['Lbol']))
+# opt_reiners, cov_reiners = curve_fit(pw_linear, np.log10(1.86e-3 * dfw['R*']**-4 *dfw['Prot'] **-2), dfw['Lx/bol'])
+# We expect a unity slope from Reiners
+# print(f"Best fit of our data {opt_pw:.2f}, ± {np.sqrt(np.diag(cov_pw)):.2f}")
 
-    x_dum = np.linspace(-6, 2, 20)
+x_dum = np.linspace(-6, 2, 20)
 
-    # fig_fit, ax_fit = plt.subplots(1,1, figsize=(8,8))
-    # ax_fit.scatter(np.log10(1.86e-3 * df['R*']**-4 *df['Prot'] **-2), df['Lx/bol'], c='gray', s=2, label='Reiners+2014')
-    ax3.plot(x_dum, 4.5 + pw_linear(x_dum, *opt_pw), c='k', label='Pw fit')
-    # ax_fit.scatter(stars['kpr'], np.log10(stars['ROSATx']/stars['Lbol']), c='k', label='Data')
-    # ax_fit.invert_xaxis()
-    kpr_axs = fig_lit.gca()
-    handles, labels = kpr_axs.get_legend_handles_labels()
-    by_label = dict(zip(labels, handles))
-    ax3.legend(by_label.values(), by_label.keys())
+ax3.plot(x_dum, 4 + pw_linear(x_dum, *opt_pw), c='k', label='Fit', ls='--')
+ax3.set_xlabel('k P$^{-2}$ R$^{-4}$')
+ax3.set_ylabel('Log L$_x$/L$_{bol}$ (erg s$^{-1}$)')
 
-    # fig_lit.savefig('Figures/Lx_kpr+Reiners+fit.png', dpi=50, bbox_inches='tight')  
-    plt.show()
-else:
-    # fig_pl.savefig('Figures/Lx_Prot_+lit.png', dpi=500, bbox_inches='tight')
-    # fig_kpr.savefig('Figures/Lx_kpr_Mulitple_bands.pdf', dpi=50,  bbox_inches='tight')
-    # fig_lit.savefig('Figures/Lx_kpr+Reiners.png', dpi=50, bbox_inches='tight') 
-    plt.show()
+kpr_axs = fig_fit.gca()
+handles, labels = kpr_axs.get_legend_handles_labels()
+by_label = dict(zip(labels, handles))
+ax3.legend(by_label.values(), by_label.keys())
 
-
+fig_fit.savefig('Figures/Paper/Lx_kpr+Reiners+fit.png', dpi=100, bbox_inches='tight')  
+plt.show()
 
 
 # %% 
